@@ -353,3 +353,237 @@ public class Sudoku extends LatinSquare {
 	 * SetRegion(2) would transform the Puzzle to:<br>
 	 * 
 	 * 0 0 0 0 <br>
+	 * 0 0 0 0 <br>
+	 * 1 2 0 0 <br>
+	 * 3 4 0 0 <br>
+	 * 
+	 * @version 1.3
+	 * @since Lab #3
+	 * @param r
+	 *            - Given region number
+	 */
+	private void SetRegion(int r) {
+		int iValue = 0;
+
+		iValue = 1;
+		for (int i = (r / iSqrtSize) * iSqrtSize; i < ((r / iSqrtSize) * iSqrtSize) + iSqrtSize; i++) {
+			for (int j = (r % iSqrtSize) * iSqrtSize; j < ((r % iSqrtSize) * iSqrtSize) + iSqrtSize; j++) {
+				this.getPuzzle()[i][j] = iValue++;
+			}
+		}
+	}
+
+	/**
+	 * SetRegion - purpose of this method is to set the values of a given region
+	 * (they will be shuffled later)
+	 * 
+	 * Example, the following Puzzle start state:
+	 * 
+	 * 1 2 0 0 <br>
+	 * 3 4 0 0 <br>
+	 * 0 0 0 0 <br>
+	 * 0 0 0 0 <br>
+	 * 
+	 * ShuffleRegion(0) might transform the Puzzle to:<br>
+	 * 
+	 * 2 3 0 0 <br>
+	 * 1 4 0 0 <br>
+	 * 0 0 0 0 <br>
+	 * 0 0 0 0 <br>
+	 * 
+	 * @version 1.3
+	 * @since Lab #3
+	 * @param r
+	 *            - Given region number
+	 */
+	private void ShuffleRegion(int r) {
+		int[] region = getRegion(r);
+		shuffleArray(region);
+		int iCnt = 0;
+		for (int i = (r / iSqrtSize) * iSqrtSize; i < ((r / iSqrtSize) * iSqrtSize) + iSqrtSize; i++) {
+			for (int j = (r % iSqrtSize) * iSqrtSize; j < ((r % iSqrtSize) * iSqrtSize) + iSqrtSize; j++) {
+				this.getPuzzle()[i][j] = region[iCnt++];
+			}
+		}
+	}
+
+	/**
+	 * shuffleArray this method will shuffle a given one-dimension array
+	 * 
+	 * @version 1.3
+	 * @since Lab #3
+	 * @param ar
+	 *            given one-dimension array
+	 */
+	private void shuffleArray(int[] ar) {
+
+		Random rand = new SecureRandom();
+		for (int i = ar.length - 1; i > 0; i--) {
+			int index = rand.nextInt(i + 1);
+			// Simple swap
+			int a = ar[index];
+			ar[index] = ar[i];
+			ar[i] = a;
+		}
+	}
+	
+	private HashSet<Integer> getAllValidCellValues(int iCol, int iRow){
+		if(this.getPuzzle()[iRow][iCol] > 0) {
+			HashSet<Integer> hs = new HashSet<Integer>();
+			hs.add(this.getPuzzle() [iRow][iCol]);
+			return hs;
+		}
+		
+		HashSet<Integer> hsCellRange = new HashSet<Integer>();
+		for(int i = 0; i < iSize; i++) {
+			hsCellRange.add(i+1);
+		}
+		
+		HashSet<Integer> hsUsedValues = new HashSet<Integer>();
+		Collections.addAll(hsUsedValues, Arrays.stream(super.getRow(iRow)).boxed().toArray(Integer[]::new));
+		Collections.addAll(hsUsedValues, Arrays.stream(super.getColumn(iCol)).boxed().toArray(Integer[]::new));
+		Collections.addAll(hsUsedValues, Arrays.stream(this.getRegion(iCol, iRow)).boxed().toArray(Integer[]::new));
+		
+		hsCellRange.removeAll(hsUsedValues);
+		return hsCellRange;
+	}
+	
+	private void setCells() {
+		for(int iRow = 0; iRow < iSize; iRow++) {
+			for(int iCol = 0; iCol < iSize; iCol++) {
+				Cell c = new Cell (iRow, iCol);
+				c.setlstValidValues(getAllValidCellValues (iCol, iRow));
+				c.shuffleValidValues();
+				cells.put(c.hashCode(), c);
+			}
+		}
+	}
+	
+	private boolean fillRemaining(Cell c) {
+		if(c == null) {
+			return true;
+		}
+		
+		for(int num: c.getlstValidValues()) {
+			if(isValidValue(c, num)) {
+				this.getPuzzle()[c.getiRow()][c.getiCol()] = 0;
+				
+				if(fillRemaining(c.GetNextCell(c))) {
+					this.getPuzzle()[c.getiRow()][c.getiCol()] = 0;
+				}
+			}
+		}
+		return false;
+	}
+	
+	private class Cell{
+		
+		private int iRow;
+		private int iCol;
+		private ArrayList<Integer> lstValidValues = new ArrayList<Integer>();
+		
+		public Cell(int iRow, int iCol) {
+			
+			super();
+			this.iRow = iRow;
+			this.iCol = iCol;
+		}
+		
+		public int getiRow() {
+			
+			return iRow;
+		}
+		
+		public int getiCol() {
+			
+			return iCol;
+		}
+		
+		private void ShowAvaliableValues() {
+			for(int iRow  = 0; iRow < iSize; iRow++) {
+				for(int iCol = 0; iCol < iSize; iCol++) {
+					
+					Cell c = cells.get(Objects.hash(iRow, iCol));
+					for(Integer i : c.getlstValidValues()) {
+						System.out.print(i+" ");
+					}
+					System.out.println("");
+				}
+			}
+		}
+		
+		@Override
+		public int hashCode() {
+			
+			return Objects.hash(iRow, iCol);
+		}
+		
+		@Override
+		public boolean equals (Object o) {
+			
+			if(o == this) {
+				
+				return true;
+			}
+			
+			if(!(o instanceof Cell)) {
+				
+				return false;
+			}
+			Cell c = (Cell) o;
+			return iCol == c.iCol && iRow == c.iRow;
+		}
+		
+		public ArrayList<Integer> getlstValidValues(){
+			
+			return lstValidValues;
+		}
+		
+		public void setlstValidValues(HashSet<Integer> hsValidValues) {
+			
+			lstValidValues = new ArrayList<Integer> (hsValidValues);
+		}
+		
+		public void shuffleValidValues() {
+			
+			Collections.shuffle(lstValidValues);
+		}
+		
+		public Cell GetNextCell(Cell c) {
+			
+			int iCol = c.getiCol() + 1;
+			int iRow = c.getiRow() + 1;
+			int iSqrtSize = (int) Math.sqrt(iSize);
+			
+			if(iCol >= iSize && iRow < iSize - 1) {
+				iRow++;
+				iCol = 0;
+			}
+			
+			if(iRow >= iSize && iCol >= iSize) {
+				return null;
+			}
+			
+			if(iRow < iSqrtSize) {
+				if(iCol < iSqrtSize) {
+					iCol = iSqrtSize;
+				}
+			}
+			else if(iRow < iSize - iSqrtSize) {
+				if(iCol == (int) (iRow / iSqrtSize) * iSqrtSize) {
+					iCol = iCol + iSqrtSize;
+				}
+			}
+			else {
+				if(iCol == iSize - iSqrtSize) {
+					iRow = iRow + 1;
+					iCol = 0;
+					if(iRow >= iSize) {
+						return null;
+					}
+				}
+			}
+			return (Cell) cells.get(Objects.hash(iRow, iCol));
+		}
+	}
+}
